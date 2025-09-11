@@ -16,26 +16,39 @@ public final class LCSearchField: NSSearchField {
     /// 填充颜色
     public var fillColor: NSColor = .clear {
         didSet {
+            guard fillColor != oldValue else { return }
             layer?.backgroundColor = fillColor.cgColor
         }
     }
+    
     /// 边框颜色
     public var borderColor: NSColor = .black.withAlphaComponent(0.3) {
         didSet {
+            // 只有当颜色真正改变时才更新
+            guard borderColor != oldValue else { return }
             updateBorder()
         }
     }
+    
     /// 边框宽度
     public var borderWidth: CGFloat = 1 {
         didSet {
+            guard borderWidth != oldValue else { return }
             updateBorder()
         }
     }
+    
     /// 圆角
     public var cornerRadius: CGFloat = .greatestFiniteMagnitude {
         didSet {
+            guard cornerRadius != oldValue else { return }
             updateCornerRadius()
         }
+    }
+    
+    /// 焦点环样式（默认 `.default`）
+    public var customFocusRingType: NSFocusRingType = .default {
+        didSet { focusRingType = customFocusRingType }
     }
     
     /// 占位符颜色
@@ -75,6 +88,14 @@ public final class LCSearchField: NSSearchField {
     }
     
     
+    /// 是否正在编辑（拥有第一响应者）
+    private(set) var isEditing: Bool = false {
+        didSet {
+            guard isEditing != oldValue else { return }
+            updateBorder()
+        }
+    }
+    
     /// 备份搜索框原始放大镜图标
     private var originalSearchImage: NSImage?
     
@@ -98,28 +119,38 @@ public final class LCSearchField: NSSearchField {
         commonInit()
     }
   
-/*
-    // 加了系统的focusRingType = .default，就不需要根据焦点绘制边框了
-    // MARK: - 监听焦点变化
-    override func becomeFirstResponder() -> Bool {
-        let ok = super.becomeFirstResponder()
-        LCLogKit.debug("🔹 LCSearchField 成为第一响应者 -> \(ok)")
-        updateBorder()
-        return ok
-    }
     
-    override func resignFirstResponder() -> Bool {
-        let ok = super.resignFirstResponder()
-        LCLogKit.debug("🔹 LCSearchField 辞去第一响应者 -> \(ok)")
-        updateBorder()
-        return ok
+    // MARK: - 监听焦点变化
+    
+    // 成为第一响应者
+    public override func becomeFirstResponder() -> Bool {
+        let result = super.becomeFirstResponder()
+        isEditing = result && self.window?.firstResponder == self.currentEditor()
+        return result
     }
-*/
+    // 辞去第一响应者
+    public override func resignFirstResponder() -> Bool {
+        let result = super.resignFirstResponder()
+        isEditing = false   // 失去第一响应者时总是设为非编辑状态
+        return result
+    }
     
     // MARK: - 当控件添加到 window 时刷新边框
     public override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        updateBorder()
+        
+        // 移除旧通知，防止重复
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didResignKeyNotification, object: nil)
+        NotificationCenter.default.removeObserver(self, name: NSWindow.didBecomeKeyNotification, object: nil)
+        
+        // 只在有窗口时添加监听
+        guard let window = self.window else { return }
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(windowDidResignKey(_:)),
+                                               name: NSWindow.didResignKeyNotification, object: window)
+        // 监听窗口成为 key
+        NotificationCenter.default.addObserver(self, selector: #selector(windowDidBecomeKey(_:)),
+                                               name: NSWindow.didBecomeKeyNotification, object: window)
     }
     
     
@@ -129,6 +160,13 @@ public final class LCSearchField: NSSearchField {
     /// 该方法在用户按下 ESC 键时被触发，使搜索框失去焦点。
     public override func cancelOperation(_ sender: Any?) {
         self.window?.makeFirstResponder(nil)
+        // 结束编辑状态，恢复边框颜色
+        if isEditing {
+            isEditing = false
+#if DEBUG
+            print("🔸 LCSearchField lost editing because ESC pressed")
+#endif
+        }
     }
     
     
@@ -175,43 +213,39 @@ public final class LCSearchField: NSSearchField {
         }
     }
     
+    
     private func commonInit() {
         isBezeled = false
         isBordered = false
         isEditable = true
-        focusRingType = .default
-        delegate = self
+        focusRingType = customFocusRingType  // 初始化焦点坏
         (cell as? NSTextFieldCell)?.drawsBackground = false
         
         wantsLayer = true
         layer?.masksToBounds = true
+        
+        // 先设置所有属性
         layer?.cornerRadius = cornerRadius
         layer?.backgroundColor = fillColor.cgColor
         
+        isEditing = false // 确保初始状态为非编辑
+        
+        // 最后统一更新一次
         updateBorder()
         updateCornerRadius()
     }
     
-
     
     /// 更新边框
     private func updateBorder() {
-        if isBeingEdited {
-            layer?.borderWidth = borderWidth
-            // 暂时不使用强调色
-//            layer?.borderColor = NSColor.controlAccentColor.cgColor
-            layer?.borderColor = borderColor.cgColor
+        layer?.borderWidth = borderWidth
 #if DEBUG
-            print("--输入状态----")
+        print("更新边框: isEditing=\(isEditing), 颜色=\(isEditing ? "蓝色" : "默认")")
 #endif
-        } else {
-            layer?.borderWidth = borderWidth
-            layer?.borderColor = borderColor.cgColor
-#if DEBUG
-            print("不是输入状态")
-#endif
-        }
+        // 编辑、非编辑状态设置不同的颜色
+        layer?.borderColor = isEditing ? NSColor.controlAccentColor.cgColor : borderColor.cgColor
     }
+    
     
     /// 更新圆角
     private func updateCornerRadius() {
@@ -219,7 +253,6 @@ public final class LCSearchField: NSSearchField {
         layer?.cornerRadius = min(bounds.height / 2, r)
     }
    
-    
     
     /// 更新`搜索框左侧`的`放大镜图标`
     ///
@@ -249,23 +282,22 @@ public final class LCSearchField: NSSearchField {
         needsDisplay = true
     }
     
-    
-    
-    
 }
 
 
-//MARK: - NSSearchFieldDelegate
-extension LCSearchField: NSSearchFieldDelegate {
+//MARK: - Handle notifcation
+extension LCSearchField {
     
-    // 开始编辑
-    public func controlTextDidBeginEditing(_ obj: Notification) {
-//        updateBorder()
+    // 处理窗口失去焦点通知，- 当应用窗口不再是活动窗口（失去键盘焦点）时调用
+    @objc private func windowDidResignKey(_ no: Notification) {
+        // 窗口失去焦点时，搜索框应该恢复非编辑状态
+        isEditing = false
     }
-    
-    // 结束编辑
-    public func controlTextDidEndEditing(_ obj: Notification) {
-//        updateBorder()
+
+    // 处理窗口获得焦点通知 ，- 当应用窗口成为活动窗口（获得键盘焦点）时调用
+    @objc private func windowDidBecomeKey(_ no: Notification) {
+        // 窗口获得焦点时，检查搜索框是否是当前编辑者
+        isEditing = self.window?.firstResponder == self.currentEditor()
     }
     
 }
