@@ -92,7 +92,9 @@ public final class LCSearchField: NSSearchField {
     private(set) var isEditing: Bool = false {
         didSet {
             guard isEditing != oldValue else { return }
-            updateBorder()
+            DispatchQueue.main.async { [weak self] in
+                self?.updateBorder()
+            }
         }
     }
     
