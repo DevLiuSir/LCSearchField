@@ -127,7 +127,7 @@ public final class LCSearchField: NSSearchField {
     // 成为第一响应者
     public override func becomeFirstResponder() -> Bool {
         let result = super.becomeFirstResponder()
-        isEditing = result && self.window?.firstResponder == self.currentEditor()
+        isEditing = result
         return result
     }
     // 辞去第一响应者
