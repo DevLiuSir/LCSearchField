@@ -13,6 +13,12 @@ import Cocoa
 public final class LCSearchField: NSSearchField {
     
     // MARK: - 可自定义属性
+    
+    /// 是否在编辑时使用系统强调色边框
+    public var useAccentColorWhenEditing: Bool = true {
+        didSet { updateBorder() }
+    }
+    
     /// 填充颜色
     public var fillColor: NSColor = .clear {
         didSet {
@@ -245,7 +251,15 @@ public final class LCSearchField: NSSearchField {
         print("更新边框: isEditing=\(isEditing), 颜色=\(isEditing ? "蓝色" : "默认")")
 #endif
         // 编辑、非编辑状态设置不同的颜色
-        layer?.borderColor = isEditing ? NSColor.controlAccentColor.cgColor : borderColor.cgColor
+//        layer?.borderColor = isEditing ? NSColor.controlAccentColor.cgColor : borderColor.cgColor
+        
+        // 编辑状态下是否使用强调色
+        if isEditing && useAccentColorWhenEditing {
+            layer?.borderColor = NSColor.controlAccentColor.cgColor
+        } else {
+            layer?.borderColor = borderColor.cgColor
+        }
+        
     }
     
     
