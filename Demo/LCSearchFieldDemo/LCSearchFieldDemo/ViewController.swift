@@ -14,16 +14,10 @@ class ViewController: NSViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        searchBar.useAccentColorWhenEditing = false
         searchBar.borderWidth = 2
         searchBar.customFocusRingType = .none
     }
-
-    override var representedObject: Any? {
-        didSet {
-        // Update the view, if already loaded.
-        }
-    }
-
-
+    
 }
 
