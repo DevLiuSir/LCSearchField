@@ -2,7 +2,7 @@ Pod::Spec.new do |spec|
 
   spec.name         = "LCSearchField"
 
-  spec.version      = "1.0.3"
+  spec.version      = "1.0.4"
   
   spec.summary      = "LCSearchField is a search box control customized for the macOS Cocoa platform!"
   
